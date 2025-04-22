@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CPE Table</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="p-4">
+
+    <h2 class="mb-4">CPE Records</h2>
+
+    <!-- Filter Form -->
+    <form method="GET" class="row g-3 mb-4">
+        <div class="col-md">
+            <input type="text" name="cpe_title" class="form-control" placeholder="CPE Title" value="{{ filters.cpe_title or '' }}">
+        </div>
+        <div class="col-md">
+            <input type="text" name="cpe_22_uri" class="form-control" placeholder="CPE 2.2 URI" value="{{ filters.cpe_22_uri or '' }}">
+        </div>
+        <div class="col-md">
+            <input type="text" name="cpe_23_uri" class="form-control" placeholder="CPE 2.3 URI" value="{{ filters.cpe_23_uri or '' }}">
+        </div>
+        <div class="col-md">
+            <input type="date" name="deprecation_date" class="form-control" value="{{ filters.deprecation_date or '' }}">
+        </div>
+        <div class="col-md">
+            <button type="submit" class="btn btn-primary w-100">Search</button>
+        </div>
+    </form>
+
+    <!-- Limit Dropdown -->
+    <form method="GET" id="paginationForm" class="mb-3">
+        <input type="hidden" name="cpe_title" value="{{ filters.cpe_title or '' }}">
+        <input type="hidden" name="cpe_22_uri" value="{{ filters.cpe_22_uri or '' }}">
+        <input type="hidden" name="cpe_23_uri" value="{{ filters.cpe_23_uri or '' }}">
+        <input type="hidden" name="deprecation_date" value="{{ filters.deprecation_date or '' }}">
+        <input type="hidden" name="page" value="1">
+
+        <label for="limitInput" class="form-label">Records per page:</label>
+        <input
+            type="number"
+            id="limitInput"
+            name="limit"
+            class="form-control"
+            style="width: 150px;"
+            min="15"
+            max="50"
+            step="1"
+            value="{{ limit }}"
+        >
+        
+    </form>
+
+    <script>
+        document.getElementById('limitSelect').addEventListener('change', function () {
+            document.getElementById('paginationForm').submit();
+        });
+    </script>
+
+    <!-- Data Table -->
+    <table class="table table-bordered table-hover">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>CPE 22 URI</th>
+                <th>CPE 23 URI</th>
+                <th>Reference Links</th>
+                <th>22 Deprecation Date</th>
+                <th>23 Deprecation Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cpe in cpes %}
+            <tr>
+                <td>{{ cpe.id }}</td>
+                <td>{{ cpe.cpe_title }}</td>
+                <td>{{ cpe.cpe_22_uri }}</td>
+                <td>{{ cpe.cpe_23_uri }}</td>
+                <td>
+                    {% set links = cpe.reference_links %}
+                    {% if links|length == 0 %}
+                        No references
+                    {% else %}
+                        {% for link in links[:2] %}
+                            <a href="{{ link }}" target="_blank" title="{{ link }}">{{ link[:30] }}...</a><br>
+                        {% endfor %}
+                        {% if links|length > 2 %}
+                            <a href="#" data-bs-toggle="popover" title="All References" data-bs-html="true" data-bs-content="
+                                {% for link in links %}
+                                    <a href='{{ link }}' target='_blank'>{{ link[:40] }}...</a><br>
+                                {% endfor %}
+                            ">+{{ links|length - 2 }} more</a>
+                        {% endif %}
+                    {% endif %}
+                </td>
+                <td>{{ cpe.cpe_22_deprecation_date|format_date }}</td>
+                <td>{{ cpe.cpe_23_deprecation_date|format_date }}</td>
+            </tr>
+            {% endfor %}
+            {% if not cpes %}
+            <tr>
+                <td colspan="7" class="text-center">No CPE records found matching your filters.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <form id="paginationForm" method="GET" action="/">
+        <!-- Hidden Inputs for Filters -->
+        <input type="hidden" name="cpe_title" value="{{ filters.cpe_title or '' }}">
+        <input type="hidden" name="cpe_22_uri" value="{{ filters.cpe_22_uri or '' }}">
+        <input type="hidden" name="cpe_23_uri" value="{{ filters.cpe_23_uri or '' }}">
+        <input type="hidden" name="deprecation_date" value="{{ filters.deprecation_date or '' }}">
+    
+        <!-- Pagination Controls -->
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="javascript:void(0);" onclick="changePage({{ page - 1 }})">
+                        Previous
+                    </a>
+                </li>
+                {% endif %}
+                <li class="page-item disabled"><span class="page-link">Page {{ page }}</span></li>
+                {% if (page * limit) < total %}
+                <li class="page-item">
+                    <a class="page-link" href="javascript:void(0);" onclick="changePage({{ page + 1 }})">
+                        Next
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+
+    </form>
+    
+    <script>
+        function changePage(page) {
+            const limit = document.getElementById('limitSelect').value;
+            const filters = {
+                cpe_title: '{{ filters.cpe_title or "" }}',
+                cpe_22_uri: '{{ filters.cpe_22_uri or "" }}',
+                cpe_23_uri: '{{ filters.cpe_23_uri or "" }}',
+                deprecation_date: '{{ filters.deprecation_date or "" }}'
+            };
+    
+            // Construct the URL with only page and limit visible
+            let url = `/?page=${page}&limit=${limit}`;
+    
+            // If there are filters with non-empty values, append them to the URL
+            if (filters.cpe_title) url += `&cpe_title=${encodeURIComponent(filters.cpe_title)}`;
+            if (filters.cpe_22_uri) url += `&cpe_22_uri=${encodeURIComponent(filters.cpe_22_uri)}`;
+            if (filters.cpe_23_uri) url += `&cpe_23_uri=${encodeURIComponent(filters.cpe_23_uri)}`;
+            if (filters.deprecation_date) url += `&deprecation_date=${encodeURIComponent(filters.deprecation_date)}`;
+    
+            // Redirect to the new URL
+            window.location.href = url;
+        }
+    
+        document.getElementById('limitSelect').addEventListener('change', function () {
+            const page = 1;  // Reset to page 1 when changing the limit
+            changePage(page);
+        });
+    </script>
+     
+
+</body>
+</html>
