@@ -175,5 +175,5 @@ Applies filters in the background while only showing `page` and `limit` in the U
 ---
 
 ## Author
-Team Ashwin / Anokxz
+Ashwin Karthik
 
